@@ -185,7 +185,7 @@ def get_iddaa_data(iddaa_hafta):
         print(f"Hata oluştu (Hafta {iddaa_hafta}): {str(e)}")
         return None
 
-def collect_historical_data(start_week=1832, end_week=1830):
+def collect_historical_data(start_week=1832, end_week=1820):
     print("Geçmiş veriler toplanıyor...")
     all_data = []
     
