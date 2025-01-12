@@ -167,6 +167,12 @@ def get_iddaa_data(iddaa_hafta):
         for col in df.columns:
             if df[col].dtype == 'object':
                 df[col] = df[col].str.replace(r'\s+', ' ', regex=True).str.strip()
+
+        if 'Tarih' in df.columns:  # Tarih sütununuzun adı 'tarih' varsayılıyor
+            df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y', errors='coerce')
+            
+            # Tarihe göre yeniden eskiye doğru sıralama
+            df = df.sort_values(by='Tarih', ascending=False).reset_index(drop=True)
         
         return df
         
