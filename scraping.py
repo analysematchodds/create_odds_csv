@@ -170,9 +170,14 @@ def get_iddaa_data(iddaa_hafta):
 
         if 'Tarih' in df.columns:  # Tarih sütununuzun adı 'tarih' varsayılıyor
             df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y', errors='coerce')
+
+        # Saat sütununu datetime formatına çevir
+        if 'Saat' in df.columns:  # Saat sütununuzun adı 'saat' varsayılıyor
+            df['Saat'] = pd.to_datetime(df['Saat'], format='%H:%M', errors='coerce').dt.time
             
-            # Tarihe göre yeniden eskiye doğru sıralama
-            df = df.sort_values(by='Tarih', ascending=False).reset_index(drop=True)
+        # Tarih ve saat sıralaması
+        if 'Tarih' in df.columns and 'Saat' in df.columns:
+            df = df.sort_values(by=['Tarih', 'Saat'], ascending=[False, False]).reset_index(drop=True)
         
         return df
         
