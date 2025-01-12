@@ -30,9 +30,9 @@ jobs:
 
       - name: Commit and push changes to match_odds_csv
         run: |
-          git config --local user.email "you@example.com"  # GitHub kullanıcı e-posta adresinizi girin
-          git config --local user.name "Your Name"  # GitHub kullanıcı adınızı girin
-          git clone https://github.com/yourusername/match_odds_csv.git  # match_odds_csv reposunu klonlayın
+          git config --local user.email "analysematchodds@analysematchodds"  # GitHub kullanıcı e-posta adresinizi girin
+          git config --local user.name "analysematchodds"  # GitHub kullanıcı adınızı girin
+          git clone https://github.com/analysematchodds/match_odds_csv.git  # match_odds_csv reposunu klonlayın
           cp iddaa_verileri.csv match_odds_csv/matchodds.csv  # CSV dosyasını kopyalayın
           cd match_odds_csv
           git add matchodds.csv
