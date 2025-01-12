@@ -3,6 +3,21 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import time
+import os
+from github import Github
+
+# GitHub token'larını ortam değişkenlerinden al
+SOURCE_REPO_TOKEN = os.environ.get('SOURCE_REPO_TOKEN')
+TARGET_REPO_TOKEN = os.environ.get('TARGET_REPO_TOKEN')
+
+# GitHub API'si ile bağlantı kur
+source_github = Github(SOURCE_REPO_TOKEN)
+target_github = Github(TARGET_REPO_TOKEN)
+
+# Hedef repo bilgileri
+TARGET_REPO_OWNER = 'scatterradarcsv'
+TARGET_REPO_NAME = 'sofa_csv'
+TARGET_FILE_PATH = 'match_odds_csv/matchodds.csv'
 
 def get_detail_value(detail_row, header_text, value_text):
     try:
@@ -181,13 +196,29 @@ def collect_historical_data(start_week=1832, end_week=1830):
         if duplicate_rows > 0:
             print(f"{duplicate_rows} duplike kayıt temizlendi")
         
-        final_df.to_csv('iddaa_verileri.csv', index=False, encoding='utf-8-sig')
-        print("\nTüm veriler 'iddaa_verileri.csv' dosyasına kaydedildi.")
+        # DataFrame'i CSV formatına dönüştür
+        csv_content = final_df.to_csv(index=False, encoding='utf-8-sig')
+        
+        # Hedef repo'ya dosyayı güncelle veya oluştur
+        update_file_in_target_repo(TARGET_FILE_PATH, csv_content, "Update matchodds.csv")
         
         return final_df
     else:
         print("Hiç veri toplanamadı!")
         return None
+
+def update_file_in_target_repo(file_path, content, commit_message):
+    target_repo = target_github.get_user(TARGET_REPO_OWNER).get_repo(TARGET_REPO_NAME)
+    try:
+        # Mevcut dosyayı al
+        file = target_repo.get_contents(file_path)
+        # Dosyayı güncelle
+        target_repo.update_file(file_path, commit_message, content, file.sha)
+        print(f"Updated {file_path} successfully")
+    except Exception as e:
+        # Dosya yoksa yeni dosya oluştur
+        target_repo.create_file(file_path, commit_message, content)
+        print(f"Created {file_path} successfully")
 
 if __name__ == "__main__":
     start_time = time.time()
