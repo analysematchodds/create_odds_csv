@@ -6,6 +6,7 @@ on:
       - main  # Ana dalda değişiklik olduğunda tetiklenecek
   schedule:
     - cron: '0 * * * *'  # Her saat başı çalışacak
+  workflow_dispatch:
 
 jobs:
   update_csv:
