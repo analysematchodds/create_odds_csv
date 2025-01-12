@@ -15,7 +15,7 @@ source_github = Github(SOURCE_REPO_TOKEN)
 target_github = Github(TARGET_REPO_TOKEN)
 
 # Hedef repo bilgileri
-TARGET_REPO_OWNER = 'scatterradarcsv'
+TARGET_REPO_OWNER = 'analysematchodds'
 TARGET_REPO_NAME = 'sofa_csv'
 TARGET_FILE_PATH = 'match_odds_csv/matchodds.csv'
 
