@@ -16,7 +16,7 @@ target_github = Github(TARGET_REPO_TOKEN)
 
 # Hedef repo bilgileri
 TARGET_REPO_OWNER = 'analysematchodds'
-TARGET_REPO_NAME = 'sofa_csv'
+TARGET_REPO_NAME = 'match_odds_csv'
 TARGET_FILE_PATH = 'matchodds.csv'
 
 def get_detail_value(detail_row, header_text, value_text):
