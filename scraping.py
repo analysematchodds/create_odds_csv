@@ -19,6 +19,31 @@ TARGET_REPO_OWNER = 'analysematchodds'
 TARGET_REPO_NAME = 'match_odds_csv'
 TARGET_FILE_PATH = 'matchodds.csv'
 
+def get_current_week():
+    try:
+        base_url = "https://www.spordb.com/view/iddaa_program_table.php"
+        response = requests.get(base_url)
+        response.raise_for_status()  # HTTP hatalarını kontrol eder
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Doğru select etiketini bul
+        select_tag = soup.find('select', {'id': 'iddaa_daterange'})
+        if not select_tag:
+            raise ValueError("iddaa_daterange select etiketi bulunamadı.")
+        
+        # En üstteki option etiketini al
+        top_option_tag = select_tag.find('option')
+        if top_option_tag and top_option_tag.has_attr('value'):
+            return int(top_option_tag['value'])  # En üst option'un value değerini döndür
+
+    except Exception as e:
+        print(f"Mevcut hafta kontrolünde hata: {str(e)}")
+    
+    return None
+
+start_week = get_current_week()
+end_week = 1820
+
 def get_detail_value(detail_row, header_text, value_text):
     try:
         div = detail_row.find('div', string=lambda x: x and x.strip() == header_text.strip())
@@ -195,6 +220,7 @@ def collect_historical_data(start_week=1832, end_week=1820):
         if df is not None and not df.empty:
             df['Hafta'] = hafta
             all_data.append(df)
+            print(f"{hafta}. hafta verileri çekildi.")
     
     if all_data:
         final_df = pd.concat(all_data, ignore_index=True)
@@ -233,7 +259,7 @@ def update_file_in_target_repo(file_path, content, commit_message):
 
 if __name__ == "__main__":
     start_time = time.time()
-    df = collect_historical_data()
+    df = collect_historical_data(start_week, end_week)
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"\nScript çalışma süresi: {execution_time:.2f} saniye")
