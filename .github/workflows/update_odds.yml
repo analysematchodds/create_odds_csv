@@ -1,0 +1,42 @@
+name: Update Match Odds CSV
+
+on:
+  push:
+    branches:
+      - main  # Ana dalda değişiklik olduğunda tetiklenecek
+  schedule:
+    - cron: '0 * * * *'  # Her saat başı çalışacak
+
+jobs:
+  update_csv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout create_odds_csv repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'  # Python sürümünü ayarlayın
+
+      - name: Install dependencies
+        run: |
+          pip install pandas requests beautifulsoup4
+
+      - name: Run scraping script
+        run: |
+          python scraping.py
+
+      - name: Commit and push changes to match_odds_csv
+        run: |
+          git config --local user.email "you@example.com"  # GitHub kullanıcı e-posta adresinizi girin
+          git config --local user.name "Your Name"  # GitHub kullanıcı adınızı girin
+          git clone https://github.com/yourusername/match_odds_csv.git  # match_odds_csv reposunu klonlayın
+          cp iddaa_verileri.csv match_odds_csv/matchodds.csv  # CSV dosyasını kopyalayın
+          cd match_odds_csv
+          git add matchodds.csv
+          git commit -m "Update matchodds.csv"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub token'ı kullanarak push işlemi
