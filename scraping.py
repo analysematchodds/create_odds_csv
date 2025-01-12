@@ -42,7 +42,7 @@ def get_current_week():
     return None
 
 start_week = get_current_week()
-end_week = 1820
+end_week = 1810
 
 def get_detail_value(detail_row, header_text, value_text):
     try:
