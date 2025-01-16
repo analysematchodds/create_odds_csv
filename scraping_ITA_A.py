@@ -110,7 +110,7 @@ def get_iddaa_data(iddaa_hafta):
         print(f"AJAX yanıt kodu: {response.status_code}")
         
         soup = BeautifulSoup(response.content, 'html.parser')
-        superlig_header = soup.find('tr', {'class': 'tablemainheader'}, string=lambda x: x and 'Türkiye - Süper Lig' in x)
+        superlig_header = soup.find('tr', {'class': 'tablemainheader'}, string=lambda x: x and 'İtalya - Serie A' in x)
         
         if not superlig_header:
             print("Süper Lig maçları bulunamadı!")
