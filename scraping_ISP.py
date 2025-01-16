@@ -17,7 +17,7 @@ target_github = Github(TARGET_REPO_TOKEN)
 # Hedef repo bilgileri
 TARGET_REPO_OWNER = 'analysematchodds'
 TARGET_REPO_NAME = 'match_odds_csv'
-TARGET_FILE_PATH = 'premierleague.csv'
+TARGET_FILE_PATH = 'laliga.csv'
 
 def get_current_week():
     try:
