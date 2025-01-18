@@ -28,21 +28,3 @@ jobs:
         SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
         TARGET_REPO_TOKEN: ${{ secrets.TARGET_REPO_TOKEN }}
       run: python scraping.py
-
-    - name: Run update script
-      env:
-        SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
-        TARGET_REPO_TOKEN: ${{ secrets.TARGET_REPO_TOKEN }}
-      run: python scraping_INP.py
-
-    - name: Run update script
-      env:
-        SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
-        TARGET_REPO_TOKEN: ${{ secrets.TARGET_REPO_TOKEN }}
-      run: python scraping_ITA_A.py
-
-    - name: Run update script
-      env:
-        SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
-        TARGET_REPO_TOKEN: ${{ secrets.TARGET_REPO_TOKEN }}
-      run: python scraping_AL1.py
