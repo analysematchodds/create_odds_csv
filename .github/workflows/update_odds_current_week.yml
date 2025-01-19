@@ -1,4 +1,4 @@
-name: Update Match Odds CSV
+name: Update Match Odds Current Week CSV
 
 on:
   schedule:
