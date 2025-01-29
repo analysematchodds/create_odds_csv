@@ -171,7 +171,7 @@ def get_iddaa_data(iddaa_hafta):
                             
                         # Mevcut veri toplama mantığını koru
                         mbs_value = cells[3].get_text(strip=True)
-                        if mbs_value == '1':
+                        if (mbs_value == '1') & (lig_cell == current_league_slug):
                             row_data = {
                                 'Tarih': get_date_value(cells[0]),
                                 'Saat': cells[0].find('span').get_text(strip=True),
