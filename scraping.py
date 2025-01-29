@@ -5,7 +5,6 @@ from datetime import datetime
 import time
 import os
 from github import Github
-import traceback
 
 # GitHub token'larını ortam değişkenlerinden al
 SOURCE_REPO_TOKEN = os.environ.get('SOURCE_REPO_TOKEN')
@@ -90,53 +89,94 @@ def get_date_value(cell):
     icon = cell.find('i', {'class': 'fa-angle-double-right'})
     return icon.get('title') if icon and icon.get('title') else ''
 
-def get_iddaa_data(iddaa_hafta, max_retries=3):
-    for attempt in range(max_retries):
-        try:
-            base_url = "https://www.spordb.com/iddaa-programi/"
-            print("Ana sayfa yükleniyor...")
+def get_iddaa_data(iddaa_hafta):
+    try:
+        ajax_url = "https://www.spordb.com/view/iddaa_program_table.php"
+        params = {
+            'iddaa_hafta': str(iddaa_hafta),
+            'tarih': '*',
+            'orderby': 'lig'
+        }
+        
+        print(f"\n{iddaa_hafta} haftası verileri yükleniyor...")
+        
+        # Stream kullanarak veriyi parça parça al
+        with requests.get(ajax_url, params=params, stream=True) as response:
+            content = ''
+            found_league = False
+            found_next_league = False
+            buffer = ''
             
-            session = requests.Session()
-            response = session.get(base_url)
-            print("Ana sayfa yanıt kodu:", response.status_code)
+            current_league_string = "Türkiye - Süper Lig"
+            current_league_slug = "TÜR S"
             
-            ajax_url = "https://www.spordb.com/view/iddaa_program_table.php"
-            params = {
-                'iddaa_hafta': str(iddaa_hafta),
-                'tarih': '*',
-                'orderby': 'lig'
-            }
+            for chunk in response.iter_content(chunk_size=4096, decode_unicode=True):
+                if chunk:
+                    buffer += chunk
+                    
+                    # Yeterli veri biriktiğinde işle
+                    if len(buffer) > 8192:
+                        content += buffer
+                        buffer = ''
+                    
+                    # İstenen lig başlığını bul
+                    if current_league_string in content and not found_league:
+                        found_league = True
+                        print(f"{current_league_string} bölümü bulundu!")
+                    
+                    # Bir sonraki lig başlığını bul
+                    if found_league and not found_next_league:
+                        soup_temp = BeautifulSoup(content, 'html.parser')
+                        headers = soup_temp.find_all('tr', {'class': 'tablemainheader'})
+                        
+                        for i, header in enumerate(headers):
+                            if current_league_string in header.get_text():
+                                # Bir sonraki header varsa ve farklı bir ligi gösteriyorsa
+                                if i + 1 < len(headers) and current_league_string not in headers[i+1].get_text():
+                                    found_next_league = True
+                                    print(f"{current_league_string} bölümü tamamlandı!")
+                                    break
+                    
+                    if found_next_league:
+                        break
             
-            print(f"\n{iddaa_hafta} haftası verileri yükleniyor...")
-            response = session.get(ajax_url, params=params)
-            print(f"AJAX yanıt kodu: {response.status_code}")
+            # Son buffer'ı da ekle
+            content += buffer
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            soup = BeautifulSoup(content, 'html.parser')
             
-            superlig_link = soup.find('a', href='/puan-durumu/358/257/38575/')
-            if superlig_link:
-                superlig_header = superlig_link.find_parent('tr', {'class': 'tablemainheader'})
-            else:
-                # Link bulunamazsa metin içinde ara
-                superlig_header = soup.find('tr', {'class': 'tablemainheader'}, 
-                    string=lambda x: x and ('Türkiye - Süper Lig' in x or 'TÜR S' in x))
-                
-            print(superlig_header)
+            # Lig başlığını bul
+            lig_header = soup.find('tr', {'class': 'tablemainheader'}, 
+                string=lambda x: x and current_league_string in str(x))
             
+            if not lig_header:
+                print(f"{current_league_string} başlığı bulunamadı!")
+                return None
+            
+            # Maçları topla
             data = []
-            current_row = superlig_header.find_next_sibling('tr')
+            current_row = lig_header.find_next_sibling('tr')
             
-            while current_row and not current_row.get('class', [''])[0] == 'tablemainheader':
-                if current_row.get('filtervalue'):
+            # Bir sonraki lige kadar olan tüm futbol maçlarını al
+            while current_row:
+                if current_row.get('class', [''])[0] == 'tablemainheader':
+                    break
+                
+                if current_row.get('filtervalue') == 'futbol ':
                     cells = current_row.find_all(['td'])
-                    if cells:
-                        lig = cells[2].get_text(strip=True)
-                        if (lig == 'TÜR S'):
+                    if cells and len(cells) > 2:
+                        lig_cell = cells[2].get_text(strip=True)
+                        if lig_cell != current_league_slug:
+                            break
+                            
+                        # Mevcut veri toplama mantığını koru
+                        mbs_value = cells[3].get_text(strip=True)
+                        if mbs_value == '1':
                             row_data = {
                                 'Tarih': get_date_value(cells[0]),
                                 'Saat': cells[0].find('span').get_text(strip=True),
-                                'Lig': lig,
-                                'MBS': cells[3].get_text(strip=True),
+                                'Lig': lig_cell,
+                                'MBS': mbs_value,
                                 'Ev Sahibi': get_team_name(cells[4]),
                                 'Skor': cells[5].get_text(strip=True),
                                 'Deplasman': get_team_name(cells[6]),
@@ -188,35 +228,32 @@ def get_iddaa_data(iddaa_hafta, max_retries=3):
                 current_row = current_row.find_next_sibling('tr')
             
             if not data:
-                print("İşlenebilir Süper Lig maçı bulunamadı!")
+                print(f"\n{current_league_string} maçı bulunamadı!")
                 return None
             
-            print(f"Bulunan Süper Lig maç sayısı: {len(data)}")
+            print(f"Bulunan {current_league_string} maç sayısı: {len(data)}")
             
             df = pd.DataFrame(data)
             
+            # Mevcut veri temizleme işlemlerini koru
             for col in df.columns:
                 if df[col].dtype == 'object':
                     df[col] = df[col].str.replace(r'\s+', ' ', regex=True).str.strip()
 
-            if 'Tarih' in df.columns:  # Tarih sütununuzun adı 'tarih' varsayılıyor
+            if 'Tarih' in df.columns:
                 df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y', errors='coerce')
 
-            # Saat sütununu datetime formatına çevir
-            if 'Saat' in df.columns:  # Saat sütununuzun adı 'saat' varsayılıyor
+            if 'Saat' in df.columns:
                 df['Saat'] = pd.to_datetime(df['Saat'], format='%H:%M', errors='coerce').dt.time
-            
-            # Tarih ve saat sıralaması
+                
             if 'Tarih' in df.columns and 'Saat' in df.columns:
                 df = df.sort_values(by=['Tarih', 'Saat'], ascending=[False, False]).reset_index(drop=True)
             
             return df
-        except Exception as e:
-            print(f"Deneme {attempt + 1}/{max_retries} başarısız: {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(5)  # 5 saniye bekle
-            continue
-    return None
+            
+    except Exception as e:
+        print(f"Hata oluştu (Hafta {iddaa_hafta}): {str(e)}")
+        return None
 
 def collect_historical_data(start_week=1832, end_week=1820):
     print("Geçmiş veriler toplanıyor...")
