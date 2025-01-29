@@ -112,16 +112,16 @@ def get_iddaa_data(iddaa_hafta, max_retries=3):
             print(f"AJAX yanıt kodu: {response.status_code}")
             
             soup = BeautifulSoup(response.content, 'html.parser')
-            superlig_header = soup.find('tr', {'class': 'tablemainheader'}, 
-                string=lambda x: x and ('Türkiye - Süper Lig' in x or 'TÜR S' in x))
             
-            if not superlig_header:
-                print(f"Hafta {iddaa_hafta}: Süper Lig başlığı bulunamadı")
-                # Alternatif arama yöntemi
-                superlig_header = soup.find('td', string=lambda x: x and 'TÜR S' in x)
-                if not superlig_header:
-                    print(f"Sayfa içeriği: {soup.prettify()[:1000]}")  # İlk 1000 karakter
-                    return None
+            superlig_link = soup.find('a', href='/puan-durumu/358/257/38575/')
+            if superlig_link:
+                superlig_header = superlig_link.find_parent('tr', {'class': 'tablemainheader'})
+            else:
+                # Link bulunamazsa metin içinde ara
+                superlig_header = soup.find('tr', {'class': 'tablemainheader'}, 
+                    string=lambda x: x and ('Türkiye - Süper Lig' in x or 'TÜR S' in x))
+                
+            print(superlig_header)
             
             data = []
             current_row = superlig_header.find_next_sibling('tr')
