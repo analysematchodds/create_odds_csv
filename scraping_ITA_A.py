@@ -107,7 +107,7 @@ def get_iddaa_data(iddaa_hafta):
             found_next_league = False
             buffer = ''
             
-            current_league_string = "Serie A"
+            current_league_string = "İtalya - Serie A"
             current_league_slug = "İTA A"
             
             for chunk in response.iter_content(chunk_size=4096, decode_unicode=True):
