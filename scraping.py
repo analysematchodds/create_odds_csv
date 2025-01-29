@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 import os
 from github import Github
+import traceback
 
 # GitHub token'larını ortam değişkenlerinden al
 SOURCE_REPO_TOKEN = os.environ.get('SOURCE_REPO_TOKEN')
@@ -89,138 +90,160 @@ def get_date_value(cell):
     icon = cell.find('i', {'class': 'fa-angle-double-right'})
     return icon.get('title') if icon and icon.get('title') else ''
 
-def get_iddaa_data(iddaa_hafta):
-    try:
-        base_url = "https://www.spordb.com/iddaa-programi/"
-        print("Ana sayfa yükleniyor...")
-        
-        session = requests.Session()
-        response = session.get(base_url)
-        print("Ana sayfa yanıt kodu:", response.status_code)
-        
-        ajax_url = "https://www.spordb.com/view/iddaa_program_table.php"
-        params = {
-            'iddaa_hafta': str(iddaa_hafta),
-            'tarih': '*',
-            'orderby': 'lig'
-        }
-        
-        print(f"\n{iddaa_hafta} haftası verileri yükleniyor...")
-        response = session.get(ajax_url, params=params)
-        print(f"AJAX yanıt kodu: {response.status_code}")
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        superlig_header = soup.find('tr', {'class': 'tablemainheader'}, string=lambda x: x and 'Türkiye - Süper Lig' in x)
-        
-        if not superlig_header:
-            print("Süper Lig maçları bulunamadı!")
-            return None
+def get_iddaa_data(iddaa_hafta, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            base_url = "https://www.spordb.com/iddaa-programi/"
+            print("Ana sayfa yükleniyor...")
             
-        data = []
-        current_row = superlig_header.find_next_sibling('tr')
-        
-        while current_row and not current_row.get('class', [''])[0] == 'tablemainheader':
-            if current_row.get('filtervalue'):
-                cells = current_row.find_all(['td'])
-                if cells:
-                    mbs_value = cells[3].get_text(strip=True)
-                    lig = cells[2].get_text(strip=True)
-                    if (mbs_value == '1') and (lig == 'TÜR S'):
-                        row_data = {
-                            'Tarih': get_date_value(cells[0]),
-                            'Saat': cells[0].find('span').get_text(strip=True),
-                            'Lig': lig,
-                            'MBS': mbs_value,
-                            'Ev Sahibi': get_team_name(cells[4]),
-                            'Skor': cells[5].get_text(strip=True),
-                            'Deplasman': get_team_name(cells[6]),
-                            'İY': cells[7].get_text(strip=True),
-                            'MS1': get_cell_value(cells[8]),
-                            'MS0': get_cell_value(cells[9]),
-                            'MS2': get_cell_value(cells[10]),
-                            'AU2.5 Alt': get_cell_value(cells[11]),
-                            'AU2.5 Üst': get_cell_value(cells[12]),
-                            'KG Var': get_cell_value(cells[13]),
-                            'KG Yok': get_cell_value(cells[14]),
-                            'IY0.5 Alt': get_cell_value(cells[15]),
-                            'IY0.5 Üst': get_cell_value(cells[16]),
-                            'AU1.5 Alt': get_cell_value(cells[17]),
-                            'AU1.5 Üst': get_cell_value(cells[18]),
-                            'Çifte Şans 1-X': get_cell_value(cells[20]) if len(cells) > 20 else '',
-                            'Çifte Şans 1-2': get_cell_value(cells[21]) if len(cells) > 21 else '',
-                            'Çifte Şans X-2': get_cell_value(cells[22]) if len(cells) > 22 else '',
-                        }
-                        
-                        detail_row = current_row.find_next_sibling('tr', {'class': 'detail'})
-                        if detail_row:
-                            detail_data = {
-                                'IY Çifte Şans 1-X': get_detail_value(detail_row, 'İlk Yarı Çifte Şans', '1/X'),
-                                'IY Çifte Şans 1-2': get_detail_value(detail_row, 'İlk Yarı Çifte Şans', '1/2'),
-                                'IY Çifte Şans X-2': get_detail_value(detail_row, 'İlk Yarı Çifte Şans', '0/2'),
-                                'IY1': get_detail_value(detail_row, 'İlk Yarı Sonucu', '1'),
-                                'IY0': get_detail_value(detail_row, 'İlk Yarı Sonucu', '0'),
-                                'IY2': get_detail_value(detail_row, 'İlk Yarı Sonucu', '2'),
-                                '2Y1': get_detail_value(detail_row, 'İkinci Yarı Sonucu', '1'),
-                                '2Y0': get_detail_value(detail_row, 'İkinci Yarı Sonucu', '0'),
-                                '2Y2': get_detail_value(detail_row, 'İkinci Yarı Sonucu', '2'),
-                                'Tek': get_detail_value(detail_row, 'Tek / Çift', 'Tek'),
-                                'Çift': get_detail_value(detail_row, 'Tek / Çift', 'Çift'),
-                                'IY/MS 1/1': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '1/1'),
-                                'IY/MS 1/0': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '1/0'),
-                                'IY/MS 1/2': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '1/2'),
-                                'IY/MS 0/1': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '0/1'),
-                                'IY/MS 0/0': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '0/0'),
-                                'IY/MS 0/2': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '0/2'),
-                                'IY/MS 2/1': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '2/1'),
-                                'IY/MS 2/0': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '2/0'),
-                                'IY/MS 2/2': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '2/2')
+            session = requests.Session()
+            response = session.get(base_url)
+            print("Ana sayfa yanıt kodu:", response.status_code)
+            
+            ajax_url = "https://www.spordb.com/view/iddaa_program_table.php"
+            params = {
+                'iddaa_hafta': str(iddaa_hafta),
+                'tarih': '*',
+                'orderby': 'lig'
+            }
+            
+            print(f"\n{iddaa_hafta} haftası verileri yükleniyor...")
+            response = session.get(ajax_url, params=params)
+            print(f"AJAX yanıt kodu: {response.status_code}")
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            superlig_header = soup.find('tr', {'class': 'tablemainheader'}, 
+                string=lambda x: x and ('Türkiye - Süper Lig' in x or 'TÜR S' in x))
+            
+            if not superlig_header:
+                print(f"Hafta {iddaa_hafta}: Süper Lig başlığı bulunamadı")
+                # Alternatif arama yöntemi
+                superlig_header = soup.find('td', string=lambda x: x and 'TÜR S' in x)
+                if not superlig_header:
+                    print(f"Sayfa içeriği: {soup.prettify()[:1000]}")  # İlk 1000 karakter
+                    return None
+            
+            data = []
+            current_row = superlig_header.find_next_sibling('tr')
+            
+            while current_row and not current_row.get('class', [''])[0] == 'tablemainheader':
+                if current_row.get('filtervalue'):
+                    cells = current_row.find_all(['td'])
+                    if cells:
+                        lig = cells[2].get_text(strip=True)
+                        if (lig == 'TÜR S'):
+                            row_data = {
+                                'Tarih': get_date_value(cells[0]),
+                                'Saat': cells[0].find('span').get_text(strip=True),
+                                'Lig': lig,
+                                'MBS': cells[3].get_text(strip=True),
+                                'Ev Sahibi': get_team_name(cells[4]),
+                                'Skor': cells[5].get_text(strip=True),
+                                'Deplasman': get_team_name(cells[6]),
+                                'İY': cells[7].get_text(strip=True),
+                                'MS1': get_cell_value(cells[8]),
+                                'MS0': get_cell_value(cells[9]),
+                                'MS2': get_cell_value(cells[10]),
+                                'AU2.5 Alt': get_cell_value(cells[11]),
+                                'AU2.5 Üst': get_cell_value(cells[12]),
+                                'KG Var': get_cell_value(cells[13]),
+                                'KG Yok': get_cell_value(cells[14]),
+                                'IY0.5 Alt': get_cell_value(cells[15]),
+                                'IY0.5 Üst': get_cell_value(cells[16]),
+                                'AU1.5 Alt': get_cell_value(cells[17]),
+                                'AU1.5 Üst': get_cell_value(cells[18]),
+                                'Çifte Şans 1-X': get_cell_value(cells[20]) if len(cells) > 20 else '',
+                                'Çifte Şans 1-2': get_cell_value(cells[21]) if len(cells) > 21 else '',
+                                'Çifte Şans X-2': get_cell_value(cells[22]) if len(cells) > 22 else '',
                             }
-                            row_data.update(detail_data)
-                        
-                        data.append(row_data)
+                            
+                            detail_row = current_row.find_next_sibling('tr', {'class': 'detail'})
+                            if detail_row:
+                                detail_data = {
+                                    'IY Çifte Şans 1-X': get_detail_value(detail_row, 'İlk Yarı Çifte Şans', '1/X'),
+                                    'IY Çifte Şans 1-2': get_detail_value(detail_row, 'İlk Yarı Çifte Şans', '1/2'),
+                                    'IY Çifte Şans X-2': get_detail_value(detail_row, 'İlk Yarı Çifte Şans', '0/2'),
+                                    'IY1': get_detail_value(detail_row, 'İlk Yarı Sonucu', '1'),
+                                    'IY0': get_detail_value(detail_row, 'İlk Yarı Sonucu', '0'),
+                                    'IY2': get_detail_value(detail_row, 'İlk Yarı Sonucu', '2'),
+                                    '2Y1': get_detail_value(detail_row, 'İkinci Yarı Sonucu', '1'),
+                                    '2Y0': get_detail_value(detail_row, 'İkinci Yarı Sonucu', '0'),
+                                    '2Y2': get_detail_value(detail_row, 'İkinci Yarı Sonucu', '2'),
+                                    'Tek': get_detail_value(detail_row, 'Tek / Çift', 'Tek'),
+                                    'Çift': get_detail_value(detail_row, 'Tek / Çift', 'Çift'),
+                                    'IY/MS 1/1': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '1/1'),
+                                    'IY/MS 1/0': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '1/0'),
+                                    'IY/MS 1/2': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '1/2'),
+                                    'IY/MS 0/1': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '0/1'),
+                                    'IY/MS 0/0': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '0/0'),
+                                    'IY/MS 0/2': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '0/2'),
+                                    'IY/MS 2/1': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '2/1'),
+                                    'IY/MS 2/0': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '2/0'),
+                                    'IY/MS 2/2': get_detail_value(detail_row, 'İlk Yarı / Maç Sonucu', '2/2')
+                                }
+                                row_data.update(detail_data)
+                            
+                            data.append(row_data)
+                
+                current_row = current_row.find_next_sibling('tr')
             
-            current_row = current_row.find_next_sibling('tr')
+            if not data:
+                print("İşlenebilir Süper Lig maçı bulunamadı!")
+                return None
             
-        if not data:
-            print("İşlenebilir Süper Lig maçı bulunamadı!")
-            return None
+            print(f"Bulunan Süper Lig maç sayısı: {len(data)}")
             
-        print(f"Bulunan Süper Lig maç sayısı: {len(data)}")
-        
-        df = pd.DataFrame(data)
-        
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].str.replace(r'\s+', ' ', regex=True).str.strip()
+            df = pd.DataFrame(data)
+            
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    df[col] = df[col].str.replace(r'\s+', ' ', regex=True).str.strip()
 
-        if 'Tarih' in df.columns:  # Tarih sütununuzun adı 'tarih' varsayılıyor
-            df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y', errors='coerce')
+            if 'Tarih' in df.columns:  # Tarih sütununuzun adı 'tarih' varsayılıyor
+                df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y', errors='coerce')
 
-        # Saat sütununu datetime formatına çevir
-        if 'Saat' in df.columns:  # Saat sütununuzun adı 'saat' varsayılıyor
-            df['Saat'] = pd.to_datetime(df['Saat'], format='%H:%M', errors='coerce').dt.time
+            # Saat sütununu datetime formatına çevir
+            if 'Saat' in df.columns:  # Saat sütununuzun adı 'saat' varsayılıyor
+                df['Saat'] = pd.to_datetime(df['Saat'], format='%H:%M', errors='coerce').dt.time
             
-        # Tarih ve saat sıralaması
-        if 'Tarih' in df.columns and 'Saat' in df.columns:
-            df = df.sort_values(by=['Tarih', 'Saat'], ascending=[False, False]).reset_index(drop=True)
-        
-        return df
-        
-    except Exception as e:
-        print(f"Hata oluştu (Hafta {iddaa_hafta}): {str(e)}")
-        return None
+            # Tarih ve saat sıralaması
+            if 'Tarih' in df.columns and 'Saat' in df.columns:
+                df = df.sort_values(by=['Tarih', 'Saat'], ascending=[False, False]).reset_index(drop=True)
+            
+            return df
+        except Exception as e:
+            print(f"Deneme {attempt + 1}/{max_retries} başarısız: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(5)  # 5 saniye bekle
+            continue
+    return None
 
 def collect_historical_data(start_week=1832, end_week=1820):
     print("Geçmiş veriler toplanıyor...")
     all_data = []
+    missing_weeks = []
+    weekly_match_counts = {}  # Her hafta için maç sayısını takip et
     
     for hafta in range(start_week, end_week-1, -1):
         df = get_iddaa_data(hafta)
         
         if df is not None and not df.empty:
+            match_count = len(df)
+            weekly_match_counts[hafta] = match_count
+            if match_count < 3:  # Bir haftada en az 3 maç olmalı
+                print(f"⚠️ Hafta {hafta}: Sadece {match_count} maç bulundu!")
+            
             df['Hafta'] = hafta
             all_data.append(df)
-            print(f"{hafta}. hafta verileri çekildi.")
+            print(f"{hafta}. hafta verileri çekildi. ({match_count} maç)")
+        else:
+            missing_weeks.append(hafta)
+            print(f"⚠️ {hafta}. hafta verisi alınamadı!")
+    
+    print("\nHaftalık maç sayıları:")
+    for hafta, count in weekly_match_counts.items():
+        print(f"Hafta {hafta}: {count} maç")
+    print(f"\nEksik haftalar: {missing_weeks}")
     
     if all_data:
         final_df = pd.concat(all_data, ignore_index=True)
