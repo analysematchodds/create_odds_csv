@@ -107,7 +107,7 @@ def get_iddaa_data(iddaa_hafta):
             found_next_league = False
             buffer = ''
             
-            current_league_string = "UEFA Avrupa Ligi - Grup Aşaması"
+            current_league_string = "Avrupa Ligi"
             current_league_slug = "AVL"
             
             for chunk in response.iter_content(chunk_size=4096, decode_unicode=True):
@@ -162,7 +162,8 @@ def get_iddaa_data(iddaa_hafta):
                 if current_row.get('class', [''])[0] == 'tablemainheader':
                     break
                 
-                if current_row.get('filtervalue') == 'futbol ':
+                filter_value = current_row.get('filtervalue', '')
+                if 'futbol' in filter_value:
                     cells = current_row.find_all(['td'])
                     if cells and len(cells) > 2:
                         lig_cell = cells[2].get_text(strip=True)
